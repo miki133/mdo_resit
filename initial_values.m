@@ -66,6 +66,7 @@ moment_extrapolated = interp1(x_spanwise, moment_distribution, x_new, 'spline', 
 x_spanwise = x_spanwise(:);
 lift_distribution = lift_distribution(:);
 moment_distribution = moment_distribution(:);
+
 % Interpolate lift values at x = 0 and x = 1
 lift_0 = interp1(x_spanwise, lift_distribution, 0, 'pchip', 'extrap');
 lift_1 = interp1(x_spanwise, lift_distribution, 1, 'pchip', 'extrap');
