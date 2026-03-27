@@ -8,11 +8,10 @@ function[wing_weight] = structures(x, spanwise_positions, lift_distribution, mom
     
     W_fuel = x(19);
     W_wing = x(20);
-    W_aw = 1;
+    W_aw = 1114084.574055;
     mtow = W_fuel + W_wing + W_aw;
     mzf = mtow - W_fuel;
     
-  
     write_init(mtow, mzf, c_root, outboard_span, outboard_taper_ratio, sweep_LE)
     write_load(spanwise_positions, lift_distribution, moment_distribution)
 

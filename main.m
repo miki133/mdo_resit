@@ -13,7 +13,7 @@ conHist  = [];   % rows = iterations, columns = constraints
 span = 47.57 / 2;
 inboard_span = 7.9248;
 sweep_LE = 31.5;
-reference_range = 7445040; % in meters
+reference_range = 3260 * 1000; % in meters
 
 c_root = 11.3981;
 c_tip = c_root * 0.207;
@@ -58,16 +58,25 @@ c_root_ub = 1.1;
 outboard_taper_ratio_lb = 0.25 / outboard_taper_ratio;
 outboard_taper_ratio_ub = 0.4 / outboard_taper_ratio;
 
+w_fuel_ref = 31477.7845 * 9.81;
+w_wing_ref = 11445 * 9.81;
+l_d_ref = 16;
+v_fuel_ref = 38.528466644823280;
+mtow_ref = 156489 * 9.81;
+
 %bounds
 lb = [ ...
     mach_h_lb, mach_h_lb , c_root_lb, outboard_span_lb, outboard_taper_ratio_lb, sweep_lb, ...
-    0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
+    0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
 
 ub = [ ...
     mach_h_ub, mach_h_ub, c_root_ub, outboard_span_ub, outboard_taper_ratio_ub, sweep_ub, ...
-    1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5];
+    1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5];
+ % initial design variables vector
+x0 = [mach_ref, h_ref, c_root, outboard_span, outboard_taper_ratio, sweep_LE,...
+    a_upper_1, a_upper_2, a_upper_3, a_upper_4, a_upper_5, a_upper_6, a_lower_1,...
+    a_lower_2, a_lower_3, a_lower_4, a_lower_5, a_lower_6, w_fuel_ref, w_wing_ref, l_d_ref];
 
-x0 = [mach_ref, h_ref, c_root, outboard_span, outboard_taper_ratio, sweep_LE, a_upper_1, a_upper_2, a_upper_3, a_upper_4, a_upper_5, a_upper_6, a_lower_1, a_lower_2, a_lower_3, a_lower_4, a_lower_5, a_lower_6]; % initial design variables vector
 normal_vector = x0;
 x0 = x0 ./ normal_vector; % normalize first 
 
@@ -75,22 +84,22 @@ x0 = x0 ./ normal_vector; % normalize first
 options.Display         = 'iter-detailed';
 options.Algorithm       = 'sqp';
 options.FunValCheck     = 'off';
-options.DiffMinChange   = 1e-2;         % Minimum change while gradient searching
-options.DiffMaxChange   = 1e-1;         % Maximum change while gradient searching
-options.TolCon          = 1e-3;         % Maximum difference between two subsequent constraint vectors [c and ceq]
-options.TolFun          = 1e-3;         % Maximum difference between two subsequent objective value
-options.TolX            = 1e-4;         % Maximum difference between two subsequent design vectors
+options.DiffMinChange   = 1e-6;         % Minimum change while gradient searching
+options.DiffMaxChange   = 5e-2;         % Maximum change while gradient searching
+options.TolCon          = 1e-6;         % Maximum difference between two subsequent constraint vectors [c and ceq]
+options.TolFun          = 1e-6;         % Maximum difference between two subsequent objective value
+options.TolX            = 1e-6;         % Maximum difference between two subsequent design vectors
 options.MaxIter         = 50;           % Maximum iterations
 options.OutputFcn       = @outfun;
 
 tic;
-[x,FVAL,EXITFLAG,OUTPUT] = fmincon(@(x) Optim_IDFGauss_hybrid(x),x0,[],[],[],[],lb,ub,@(x) constraints(x),options);
+[x,FVAL,EXITFLAG,OUTPUT] = fmincon(@(x) Optim_IDFGauss_hybrid(x),x0,[],[],[],[],lb,ub,@(x) constraints_IDF(x),options);
 toc;
 
 [f,vararg] = Optim_IDFGauss_hybrid(x);
-[CL_design, mtow, counter, mtow_c, wing_weight, V_tank, Re, aero, L_D_ratio] = vararg{:};
+[wing_loading, V_tank, CLdes, Re, dynamicPressure] = vararg{:};
 
-f = -f * reference_range;
+mtow_final = -f * mtow_ref;
 x_final = x .* normal_vector;
 mach = x_final(1);
 h = x_final(2);
@@ -100,43 +109,9 @@ outboard_taper_ratio = x_final(5);
 sweep_LE = x_final(6);
 a_upper = x_final(7:12);
 a_lower = x_final(13:18);
-
-[~, a, ~, rho, nu] = atmosisa(h);
-v = mach * a;
-vc_ref = 236.644; % m/s
-h_ref = 11887.2; % m
-ct_ref = 1.8639e-4;
-eta = exp( -((v - vc_ref)^2) / (2*70^2) -((h - h_ref)^2) / (2*2500^2) );
-ct = ct_ref ./ eta;
-
-aero_CDI = aerodynamics(a_upper, a_lower, CL_design, mach, h, c_root, outboard_span, outboard_taper_ratio, sweep_LE, 0);
-CDi = aero_CDI.CDiwing;
-
-span_inboard = 7.9248;
-c_kink = c_root - span_inboard * cotd(90 - sweep_LE);
-c_tip = c_kink * outboard_taper_ratio;
-lambda1 = c_kink/c_root;
-lambda2 = c_tip/c_kink;
-surface_inboard = span_inboard * (c_root + c_kink)/2;
-surface_outboard = outboard_span * (c_kink + c_tip) /2;
-wing_surface = 2 *(surface_outboard + surface_inboard);
-mac1 = (2/3) * c_root * ((1 + lambda1 + lambda1^2) / (1+lambda1));
-mac2 = (2/3) * c_kink * ((1 + lambda2 + lambda2^2) / (1+lambda2));
-mac_overall = (mac1*surface_inboard + mac2*surface_outboard)/(surface_outboard + surface_inboard);
-reynolds_ref = mach_ref * a_ref * mac_overall / nu_ref;
-
-alpha = aero.Alpha;
-
-drag_wingless_ref = 2.774713572457221e+4;
-dynamic_pressure_reference = 1.001172405760481e+4;
-dynamic_pressure = 0.5 * rho * v^2;
-drag_wingless = drag_wingless_ref * dynamic_pressure / dynamic_pressure_reference;
-cd_wingless = drag_wingless / wing_surface / dynamic_pressure;
-cd_wingless_ref = drag_wingless_ref / 283.3 / dynamic_pressure_reference;
-
-weight_wingless_plusfuel = mtow - wing_weight;
-wing_loading = mtow / wing_surface;
-AR = ( 2*span_inboard + 2*outboard_span)^ 2 / wing_surface;
+w_fuel = x(19);
+w_wing = x(20);
+L_D_ratio = x(21);
 
 figure;
 plot(iterHist, fvalHist, '-o', 'LineWidth', 1.5);
@@ -170,32 +145,37 @@ legend(arrayfun(@(i) sprintf('Constraint %d',i), ...
        'Location','best');
 
 function stop = outfun(x, optimValues, state)
-
-    global iterHist fvalHist conHist
-    persistent nCon
+    global iterHist fvalHist conHist ceqHist
+    persistent nCon nCeq
 
     stop = false;
-    reference_range = 7445040;
+    reference_mtow = 156489 * 9.81;
 
     switch state
         case 'init'
             iterHist = [];
             fvalHist = [];
             conHist  = [];
+            ceqHist  = [];
             nCon     = [];
+            nCeq     = [];
 
         case 'iter'
             iterHist(end+1,1) = optimValues.iteration;
-            fvalHist(end+1,1) = -optimValues.fval * reference_range;
+            fvalHist(end+1,1) = -optimValues.fval * reference_mtow;
 
-            [c, ~] = constraints(x);
+            [c, ceq] = constraints_IDF(x);
 
+            % ── Initialize sizes on first iteration ───────────────────────
             if isempty(nCon)
-                nCon = numel(c);
-                conHist = zeros(0,nCon);
+                nCon    = numel(c);
+                nCeq    = numel(ceq);
+                conHist = zeros(0, nCon);
+                ceqHist = zeros(0, nCeq);
             end
 
-            conHist(end+1,:) = c(:).';
+            conHist(end+1,:)  = c(:).';
+            ceqHist(end+1,:)  = ceq(:).';   % consistency constraint history
 
         case 'done'
             % nothing needed

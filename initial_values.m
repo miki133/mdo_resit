@@ -1,32 +1,60 @@
-wfuel_ref = 44559 * 9.81;
-l_d_ref = 16;
-vfuel_ref = 54.53977968; % in cubic meters, obtained from reference fuel weight and divided by the fuel density from assignment
+wfuel_ref = 31477.7845000000 * 9.81;
+vfuel_init = 54.53977968; % in cubic meters, obtained from reference fuel weight and divided by the fuel density from assignment
 h = 11887.2;
 [~, a, ~, rho] = atmosisa(h);
 Mach = 236.644 / a;
 vc_ref = 236.644; % m/s
 v_MO = 251.563;
-h_ref = 11887.2; % m
 ct_ref = 1.8639e-4;
 W_fuel = 44559 * 9.81;
 W_TO = 156489 * 9.81;
 v = Mach * a;  % m/s
-c_root = 11.3981;
-sweep_LE = 31.5;
 taper = 0.207;
 visc = 0;
-a_upper = [    0.1823
-    0.1195
-    0.1490
-    0.2179
-    0.1249
-    0.2745]';
-a_lower = [   -0.1809
-   -0.1261
-   -0.1357
-   -0.2602
-   -0.0796
-    0.1409]';
+span = 47.57 / 2;
+inboard_span = 7.9248;
+sweep_LE = 31.5;
+reference_range = 3260 * 1000; % in meters
+
+c_root = 11.3981;
+c_tip = c_root * 0.207;
+c_kink = c_root - inboard_span * cotd(90 - sweep_LE);
+
+%Performance
+h_ref = 11887.2; % m
+[~, a_ref, ~, rho_ref, nu_ref] = atmosisa(h_ref);
+mach_ref = 236.644 / a_ref;
+
+outboard_span = span - inboard_span;
+outboard_taper_ratio = c_tip / c_kink;
+
+% Upper surface coefficients
+a_upper_1 = 0.1823;
+a_upper_2 = 0.1195;
+a_upper_3 = 0.1490;
+a_upper_4 = 0.2179;
+a_upper_5 = 0.1249;
+a_upper_6 = 0.2745;
+
+% Lower surface coefficients
+a_lower_1 = -0.1809;
+a_lower_2 = -0.1261;
+a_lower_3 = -0.1357;
+a_lower_4 = -0.2602;
+a_lower_5 = -0.0796;
+a_lower_6 = 0.1409;
+
+w_fuel_ref = 31477.7845;
+w_wing_ref = 11445;
+l_d_ref = 16;
+v_fuel_ref = 38.528466644823280;
+mtow_ref = 156489 * 9.81;
+
+x = [mach_ref, h_ref, c_root, outboard_span, outboard_taper_ratio, sweep_LE,...
+    a_upper_1, a_upper_2, a_upper_3, a_upper_4, a_upper_5, a_upper_6, a_lower_1,...
+    a_lower_2, a_lower_3, a_lower_4, a_lower_5, a_lower_6, w_fuel_ref, w_wing_ref, l_d_ref];
+a_upper = x(7:12);
+a_lower = x(13:18);
 
 span = 47.57 / 2;
 span_inboard = 7.9248;
@@ -48,19 +76,12 @@ wing_surface = 2 * (surface_outboard + surface_inboard);
 
 CL = 2.5 * W_TO / (0.5 * rho * v^2 * wing_surface);
 
-aero = aerodynamics(a_upper, a_lower, CL, Mach, h, c_root, outboard_span, outboard_taper_ratio, sweep_LE, visc);
+aero = aerodynamics(CL, x, visc);
 x_spanwise = aero.Wing.Yst ./ span;
 load_factor = 1;
 
 lift_distribution = load_factor .* aero.Wing.ccl .* 0.5 .* rho .* v_MO.^2;
 moment_distribution = load_factor .* aero.Wing.cm_c4 .* 0.5 .* rho .* v_MO.^2 .* aero.Wing.chord .* mac_overall;
-
-% New spanwise positions (for example extend beyond original range)
-x_new = linspace(min(x_spanwise)-1, max(x_spanwise)+1, 200);
-
-% Interpolate + extrapolate
-lift_extrapolated = interp1(x_spanwise, lift_distribution, x_new, 'spline', 'extrap');
-moment_extrapolated = interp1(x_spanwise, moment_distribution, x_new, 'spline', 'extrap');
 
 % Ensure column vectors
 x_spanwise = x_spanwise(:);
@@ -79,7 +100,7 @@ x_spanwise = [0; x_spanwise; 1];
 lift_distribution = [lift_0; lift_distribution; lift_1];
 moment_distribution = [mom0; moment_distribution; mom1];
 
-write_init(156489, 156489-44559, c_root, outboard_span, outboard_taper_ratio, sweep_LE)
+write_init(156489, 156489-31477.7845, c_root, outboard_span, outboard_taper_ratio, sweep_LE)
 write_load(x_spanwise, lift_distribution, moment_distribution)
 EMWET B767_EMWET
 
@@ -98,10 +119,13 @@ W_end_start_ratio = (1 - W_fuel/W_TO) / 0.938;
 
 range_ref = (v / ct) * l_d_ref * log(1 / W_end_start_ratio);
 
-%V_tank_ref = find_tank_volume(a_upper, a_lower, x_spanwise, aero.Wing.chord, outboard_span);
+V_tank_ref = find_tank_volume(a_upper, a_lower, aero.Wing.Yst, aero.Wing.chord, outboard_span);
 
 W_aw = W_TO - wing_weight*9.81 - wfuel_ref;
 
-%cd_aw = aero.CLwing/16 - aero.CDwing;
-%drag_aw = cd_aw * 0.5 * rho * vc_ref^2 * wing_surface;
-%total_lift = 2 * trapz(x_spanwise, lift_distribution);
+CL = sqrt(W_TO*(W_TO-wfuel_ref)) / (0.5 * rho * v^2 * wing_surface);
+aero = aerodynamics(CL, x, 1);
+
+cd_aw = aero.CLwing/16 - aero.CDwing;
+drag_aw = cd_aw * 0.5 * rho * vc_ref^2 * wing_surface;
+w_fuel_ref = 38.5285 * 0.817 * 1000;

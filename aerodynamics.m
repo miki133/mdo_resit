@@ -1,6 +1,15 @@
-function[aero_results] = aerodynamics(a_upper, a_lower, CL, mach, h, c_root, outboard_span, outboard_taper_ratio, sweep_LE, visc)
+function[aero_results] = aerodynamics(CL, x, visc)
 
     % Wing planform geometry 
+    mach = x(1);
+    h = x(2);
+    c_root = x(3);
+    outboard_span = x(4);
+    outboard_taper_ratio = x(5);
+    sweep_LE = x(6);
+    a_upper = x(7:12);
+    a_lower = x(13:18);
+
     wing_dihedral = 6; %deg
     span_inboard = 7.9248;
     twist = 3;
