@@ -51,8 +51,32 @@ CL = 2.5 * W_TO / (0.5 * rho * v^2 * wing_surface);
 aero = aerodynamics(a_upper, a_lower, CL, Mach, h, c_root, outboard_span, outboard_taper_ratio, sweep_LE, visc);
 x_spanwise = aero.Wing.Yst ./ span;
 load_factor = 1;
+
 lift_distribution = load_factor .* aero.Wing.ccl .* 0.5 .* rho .* v_MO.^2;
 moment_distribution = load_factor .* aero.Wing.cm_c4 .* 0.5 .* rho .* v_MO.^2 .* aero.Wing.chord .* mac_overall;
+
+% New spanwise positions (for example extend beyond original range)
+x_new = linspace(min(x_spanwise)-1, max(x_spanwise)+1, 200);
+
+% Interpolate + extrapolate
+lift_extrapolated = interp1(x_spanwise, lift_distribution, x_new, 'spline', 'extrap');
+moment_extrapolated = interp1(x_spanwise, moment_distribution, x_new, 'spline', 'extrap');
+
+% Ensure column vectors
+x_spanwise = x_spanwise(:);
+lift_distribution = lift_distribution(:);
+moment_distribution = moment_distribution(:);
+% Interpolate lift values at x = 0 and x = 1
+lift_0 = interp1(x_spanwise, lift_distribution, 0, 'pchip', 'extrap');
+lift_1 = interp1(x_spanwise, lift_distribution, 1, 'pchip', 'extrap');
+
+mom0 = interp1(x_spanwise, moment_distribution, 0, 'pchip', 'extrap');
+mom1 = interp1(x_spanwise, moment_distribution, 1, 'pchip', 'extrap');
+
+% Add them to the vectors
+x_spanwise = [0; x_spanwise; 1];
+lift_distribution = [lift_0; lift_distribution; lift_1];
+moment_distribution = [mom0; moment_distribution; mom1];
 
 write_init(156489, 156489-44559, c_root, outboard_span, outboard_taper_ratio, sweep_LE)
 write_load(x_spanwise, lift_distribution, moment_distribution)
@@ -73,7 +97,7 @@ W_end_start_ratio = (1 - W_fuel/W_TO) / 0.938;
 
 range_ref = (v / ct) * l_d_ref * log(1 / W_end_start_ratio);
 
-V_tank_ref = find_tank_volume(a_upper, a_lower, x_spanwise, aero.Wing.chord, outboard_span);
+%V_tank_ref = find_tank_volume(a_upper, a_lower, x_spanwise, aero.Wing.chord, outboard_span);
 
 W_aw = W_TO - wing_weight*9.81 - wfuel_ref;
 
