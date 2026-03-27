@@ -49,7 +49,7 @@ wing_surface = 2 * (surface_outboard + surface_inboard);
 CL = 2.5 * W_TO / (0.5 * rho * v^2 * wing_surface);
 
 aero = aerodynamics(a_upper, a_lower, CL, Mach, h, c_root, outboard_span, outboard_taper_ratio, sweep_LE, visc);
-x_spanwise = aero.Wing.Yst;
+x_spanwise = aero.Wing.Yst ./ span;
 load_factor = 1;
 lift_distribution = load_factor .* aero.Wing.ccl .* 0.5 .* rho .* v_MO.^2;
 moment_distribution = load_factor .* aero.Wing.cm_c4 .* 0.5 .* rho .* v_MO.^2 .* aero.Wing.chord .* mac_overall;
