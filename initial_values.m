@@ -14,7 +14,7 @@ v = Mach * a;  % m/s
 c_root = 11.3981;
 sweep_LE = 31.5;
 taper = 0.207;
-visc = 1;
+visc = 0;
 a_upper = [    0.1823
     0.1195
     0.1490
@@ -33,8 +33,6 @@ span_inboard = 7.9248;
 c_kink = c_root - span_inboard * cotd(90 - sweep_LE);
 c_tip = c_root * taper;
 
-
-
 outboard_span = span - span_inboard;
 outboard_taper_ratio = c_root * taper / c_kink;
 surface_inboard = span_inboard * (c_root + c_kink)/2;
@@ -48,12 +46,13 @@ mac_overall = (mac1*surface_inboard + mac2*surface_outboard)/(surface_outboard +
 
 wing_surface = 2 * (surface_outboard + surface_inboard);
 
-CL = sqrt(W_TO*(W_TO-W_fuel)) / (0.5 * rho * v^2 * wing_surface);
+CL = 2.5 * W_TO / (0.5 * rho * v^2 * wing_surface);
 
 aero = aerodynamics(a_upper, a_lower, CL, Mach, h, c_root, outboard_span, outboard_taper_ratio, sweep_LE, visc);
 x_spanwise = aero.Wing.Yst;
-lift_distribution = aero.Wing.cl .* 0.5 .* rho .* v_MO^2 .* wing_surface;
-moment_distribution = aero.Wing.cm_c4 .* 0.5 .* rho .* v_MO^2 .* aero.Wing.chord .* wing_surface;
+load_factor = 1;
+lift_distribution = load_factor .* aero.Wing.ccl .* 0.5 .* rho .* v_MO.^2;
+moment_distribution = load_factor .* aero.Wing.cm_c4 .* 0.5 .* rho .* v_MO.^2 .* aero.Wing.chord .* mac_overall;
 
 write_init(156489, 156489-44559, c_root, outboard_span, outboard_taper_ratio, sweep_LE)
 write_load(x_spanwise, lift_distribution, moment_distribution)
@@ -78,5 +77,6 @@ V_tank_ref = find_tank_volume(a_upper, a_lower, x_spanwise, aero.Wing.chord, out
 
 W_aw = W_TO - wing_weight*9.81 - wfuel_ref;
 
-cd_aw = aero.CLwing/16 - aero.CDwing;
-drag_aw = cd_aw * 0.5 * rho * vc_ref^2 * wing_surface;
+%cd_aw = aero.CLwing/16 - aero.CDwing;
+%drag_aw = cd_aw * 0.5 * rho * vc_ref^2 * wing_surface;
+%total_lift = 2 * trapz(x_spanwise, lift_distribution);
