@@ -46,8 +46,8 @@ a_lower_6 = 0.1409;
 update_airfoil([a_upper_1,a_upper_2,a_upper_3,a_upper_4,a_upper_5,a_upper_6], ...
     [a_lower_1,a_lower_2,a_lower_3,a_lower_4,a_lower_5,a_lower_6])
 
-sweep_lb = 24.49 / sweep_LE;
-sweep_ub = 41.87 / sweep_LE;
+sweep_lb = 25 / sweep_LE;
+sweep_ub = 41 / sweep_LE;
 
 outboard_span_lb = 10.08 / outboard_span;
 outboard_span_ub = 18.08 / outboard_span;
@@ -84,16 +84,16 @@ normal_vector = x0;
 x0 = x0 ./ normal_vector; % normalize first 
 
 % Options for the optimization
-options.Display         = 'iter-detailed';
-options.Algorithm       = 'sqp';
-options.FunValCheck     = 'off';
-options.DiffMinChange   = 1e-6;         % Minimum change while gradient searching
-options.DiffMaxChange   = 5e-1;         % Maximum change while gradient searching
-options.TolCon          = 1e-6;         % Maximum difference between two subsequent constraint vectors [c and ceq]
-options.TolFun          = 1e-5;         % Maximum difference between two subsequent objective value
-options.TolX            = 1e-5;         % Maximum difference between two subsequent design vectors
-options.MaxIter         = 50;           % Maximum iterations
-options.OutputFcn       = @outfun;
+options = optimoptions('fmincon', ...
+    'Display', 'iter-detailed', ...
+    'Algorithm', 'sqp', ...
+    'FiniteDifferenceType', 'forward', ...
+    'FiniteDifferenceStepSize', 1e-3, ...
+    'ConstraintTolerance', 1e-6, ...
+    'OptimalityTolerance', 1e-5, ...
+    'StepTolerance', 1e-5, ...
+    'MaxIterations', 50, ...
+    'OutputFcn', @outfun);
 
 tic;
 [x,FVAL,EXITFLAG,OUTPUT] = fmincon(@(x) Optim_IDF_hybrid(x),x0,[],[],[],[],lb,ub,@(x) constraints_IDF(x),options);
@@ -101,7 +101,7 @@ toc;
 
 [f,vararg] = Optim_IDF_hybrid(x);
 
-mtow_final = -f * mtow_ref;
+mtow_final = f * mtow_ref;
 x_final = x .* normal_vector;
 mach = x_final(1);
 h = x_final(2);
@@ -122,7 +122,7 @@ xlabel('Iteration');
 ylabel('Objective Function Value');
 title('fmincon Convergence History');
 
-tolCon = options.TolCon;
+tolCon = options.ConstraintTolerance;
 
 figure; hold on; grid on;
 

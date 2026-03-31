@@ -13,7 +13,7 @@ taper = 0.207;
 visc = 0;
 span = 47.57 / 2;
 inboard_span = 7.9248;
-sweep_LE = 31.5;
+sweep_LE = 34.6;
 reference_range = 3260 * 1000; % in meters
 
 c_root = 11.3981;

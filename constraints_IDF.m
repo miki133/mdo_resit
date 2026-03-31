@@ -78,9 +78,9 @@ function [c,ceq] = constraints_IDF(x)
     
     % Consistency constraints
     
-    c_w_fuel = abs(fuel_weight - W_fuel) / W_fuel_ref;
-    c_w_wing = abs(wing_weight - W_wing) / W_wing_ref;
-    c_L_D = abs(L_D_ratio - L_D_ratio_hat) / L_D_ref;
+    c_w_fuel = (fuel_weight - W_fuel) / W_fuel_ref;
+    c_w_wing = (wing_weight - W_wing) / W_wing_ref;
+    c_L_D = (L_D_ratio - L_D_ratio_hat) / L_D_ref;
     
     %Feed back into optimizer
     
