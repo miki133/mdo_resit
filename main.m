@@ -3,17 +3,17 @@ clear all
 close all
 clc
 
-global iterHist fvalHist conHist
+global iterHist fvalHist conHist ceqHist
 fvalHist = [];   % Objective value per iteration
 iterHist = [];   % Iteration counter
-conHist  = [];   % rows = iterations, columns = constraints
-
+conHist  = [];   % rows = iterations, columns = inequality constraints
+ceqHist = [];    % rows = iterations, columns = equality constraints
 %Initial values and constants:
 
 span = 47.57 / 2;
 inboard_span = 7.9248;
 sweep_LE = 31.5;
-reference_range = 3260 * 1000; % in meters
+reference_range = 2907 * 1000; % in meters
 
 c_root = 11.3981;
 c_tip = c_root * 0.207;
@@ -43,6 +43,9 @@ a_lower_4 = -0.2602;
 a_lower_5 = -0.0796;
 a_lower_6 = 0.1409;
 
+update_airfoil([a_upper_1,a_upper_2,a_upper_3,a_upper_4,a_upper_5,a_upper_6], ...
+    [a_lower_1,a_lower_2,a_lower_3,a_lower_4,a_lower_5,a_lower_6])
+
 sweep_lb = 24.49 / sweep_LE;
 sweep_ub = 41.87 / sweep_LE;
 
@@ -58,8 +61,8 @@ c_root_ub = 1.1;
 outboard_taper_ratio_lb = 0.25 / outboard_taper_ratio;
 outboard_taper_ratio_ub = 0.4 / outboard_taper_ratio;
 
-w_fuel_ref = 31477.7845 * 9.81;
-w_wing_ref = 11445 * 9.81;
+w_fuel_ref = 29274.3142414032 * 9.81;
+w_wing_ref = 10360.2 * 9.81;
 l_d_ref = 16;
 v_fuel_ref = 38.528466644823280;
 mtow_ref = 156489 * 9.81;
@@ -85,19 +88,18 @@ options.Display         = 'iter-detailed';
 options.Algorithm       = 'sqp';
 options.FunValCheck     = 'off';
 options.DiffMinChange   = 1e-6;         % Minimum change while gradient searching
-options.DiffMaxChange   = 5e-2;         % Maximum change while gradient searching
+options.DiffMaxChange   = 5e-1;         % Maximum change while gradient searching
 options.TolCon          = 1e-6;         % Maximum difference between two subsequent constraint vectors [c and ceq]
-options.TolFun          = 1e-6;         % Maximum difference between two subsequent objective value
-options.TolX            = 1e-6;         % Maximum difference between two subsequent design vectors
+options.TolFun          = 1e-5;         % Maximum difference between two subsequent objective value
+options.TolX            = 1e-5;         % Maximum difference between two subsequent design vectors
 options.MaxIter         = 50;           % Maximum iterations
 options.OutputFcn       = @outfun;
 
 tic;
-[x,FVAL,EXITFLAG,OUTPUT] = fmincon(@(x) Optim_IDFGauss_hybrid(x),x0,[],[],[],[],lb,ub,@(x) constraints_IDF(x),options);
+[x,FVAL,EXITFLAG,OUTPUT] = fmincon(@(x) Optim_IDF_hybrid(x),x0,[],[],[],[],lb,ub,@(x) constraints_IDF(x),options);
 toc;
 
-[f,vararg] = Optim_IDFGauss_hybrid(x);
-[wing_loading, V_tank, CLdes, Re, dynamicPressure] = vararg{:};
+[f,vararg] = Optim_IDF_hybrid(x);
 
 mtow_final = -f * mtow_ref;
 x_final = x .* normal_vector;
@@ -124,25 +126,40 @@ tolCon = options.TolCon;
 
 figure; hold on; grid on;
 
-nCon = size(conHist,2);
-colors = lines(nCon);
+ineq_names = {'Wing loading','Fuel volume','Emissions'};
+colors = lines(3);
 
-for i = 1:nCon
+for i = 1:3
     plot(iterHist, conHist(:,i), ...
-        'LineWidth',1.3, ...
+        'LineWidth',1.5, ...
         'Color',colors(i,:));
 end
 
-yline( tolCon,'k--','TolCon');
+yline(tolCon,'k--','TolCon');
 yline(-tolCon,'k--','HandleVisibility','off');
+xlabel('Iteration')
+ylabel('Constraint value')
+title('Inequality Constraint Convergence')
+legend(ineq_names,'Location','best')
 
-xlabel('Iteration');
-ylabel('Constraint value');
-title('Constraint Convergence History');
 
-legend(arrayfun(@(i) sprintf('Constraint %d',i), ...
-       1:nCon,'UniformOutput',false), ...
-       'Location','best');
+figure; hold on; grid on;
+eq_names = {'Fuel consistency','Wing weight consistency','L/D consistency'};
+colors = lines(3);
+
+for i = 1:3
+    plot(iterHist, ceqHist(:,i), ...
+        'LineWidth',1.5, ...
+        'Color',colors(i,:));
+end
+
+yline(tolCon,'k--','TolCon');
+yline(-tolCon,'k--','HandleVisibility','off');
+xlabel('Iteration')
+ylabel('Constraint value')
+title('Equality Constraint Convergence')
+legend(eq_names,'Location','best')
+
 
 function stop = outfun(x, optimValues, state)
     global iterHist fvalHist conHist ceqHist

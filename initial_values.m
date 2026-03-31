@@ -6,7 +6,7 @@ Mach = 236.644 / a;
 vc_ref = 236.644; % m/s
 v_MO = 251.563;
 ct_ref = 1.8639e-4;
-W_fuel = 44559 * 9.81;
+W_fuel = 29274.3142414032 * 9.81;
 W_TO = 156489 * 9.81;
 v = Mach * a;  % m/s
 taper = 0.207;
@@ -44,8 +44,8 @@ a_lower_4 = -0.2602;
 a_lower_5 = -0.0796;
 a_lower_6 = 0.1409;
 
-w_fuel_ref = 31477.7845;
-w_wing_ref = 11445;
+w_fuel_ref = 31477.7845 * 9.81;
+w_wing_ref = 11445 * 9.81;
 l_d_ref = 16;
 v_fuel_ref = 38.528466644823280;
 mtow_ref = 156489 * 9.81;
@@ -74,7 +74,7 @@ mac_overall = (mac1*surface_inboard + mac2*surface_outboard)/(surface_outboard +
 
 wing_surface = 2 * (surface_outboard + surface_inboard);
 
-CL = 2.5 * W_TO / (0.5 * rho * v^2 * wing_surface);
+CL = 2.5 * W_TO / (0.5 * rho * v_MO^2 * wing_surface);
 
 aero = aerodynamics(CL, x, visc);
 x_spanwise = aero.Wing.Yst ./ span;
@@ -100,7 +100,7 @@ x_spanwise = [0; x_spanwise; 1];
 lift_distribution = [lift_0; lift_distribution; lift_1];
 moment_distribution = [mom0; moment_distribution; mom1];
 
-write_init(156489, 156489-31477.7845, c_root, outboard_span, outboard_taper_ratio, sweep_LE)
+write_init(156489, 156489-29274.3142414032, c_root, outboard_span, outboard_taper_ratio, sweep_LE)
 write_load(x_spanwise, lift_distribution, moment_distribution)
 EMWET B767_EMWET
 
@@ -109,7 +109,7 @@ line = fgetl(fid);
     fclose(fid);
 
 wing_weight = sscanf(line, 'Wing total weight(kg) %f');
-
+disp(wing_weight)
 
 eta = exp( -((v - vc_ref)^2) / (2*70^2) -((h - h_ref)^2) / (2*2500^2) );
 
@@ -117,7 +117,7 @@ ct = ct_ref ./ eta;
 
 W_end_start_ratio = (1 - W_fuel/W_TO) / 0.938;
 
-range_ref = (v / ct) * l_d_ref * log(1 / W_end_start_ratio);
+range_ref = (v / ct_ref) * l_d_ref * log(1 / W_end_start_ratio);
 
 V_tank_ref = find_tank_volume(a_upper, a_lower, aero.Wing.Yst, aero.Wing.chord, outboard_span);
 
@@ -128,4 +128,5 @@ aero = aerodynamics(CL, x, 1);
 
 cd_aw = aero.CLwing/16 - aero.CDwing;
 drag_aw = cd_aw * 0.5 * rho * vc_ref^2 * wing_surface;
-w_fuel_ref = 38.5285 * 0.817 * 1000;
+%w_fuel_ref = 38.5285 * 0.817 * 1000;
+

@@ -21,7 +21,9 @@ function[V_tank] = find_tank_volume(a_upper, a_lower, spanwise_positions, chord_
     
     thickness = yu_i - yl_i;
     area_between_spars_normalized = trapz(x, thickness);
-    last_pos = 0.85 * outboard_span; % Tanks end at 85% of span
+    span_inboard = 7.9248;
+    span = span_inboard + outboard_span;
+    last_pos = 0.85 * span; % Tanks end at 85% of span
 
     % Refined spanwise grid
     y_fine = linspace(0, last_pos, 500);

@@ -8,11 +8,11 @@ function[wing_weight] = structures(x, spanwise_positions, lift_distribution, mom
     
     W_fuel = x(19);
     W_wing = x(20);
-    W_aw = 1114084.574055;
+    W_aw = 115769.685758597 * 9.81;
     mtow = W_fuel + W_wing + W_aw;
     mzf = mtow - W_fuel;
     
-    write_init(mtow, mzf, c_root, outboard_span, outboard_taper_ratio, sweep_LE)
+    write_init(mtow/9.81, mzf/9.81, c_root, outboard_span, outboard_taper_ratio, sweep_LE)
     write_load(spanwise_positions, lift_distribution, moment_distribution)
 
     EMWET B767_EMWET

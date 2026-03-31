@@ -6,12 +6,12 @@ function[fuel_weight] = performance(x)
     L_D_hat = x(21);
     [~, a] = atmosisa(h);
     v = a * mach;
-    weight_wingless = 1114084.574055;
+    weight_wingless = 115769.685758597 * 9.81;
     
     vc_ref = 236.644; % m/s
     h_ref = 11887.2; % m
     ct_ref = 1.8639e-4;
-    range_ref = 3260 * 1000;
+    range_ref = 2907 * 1000;
 
     eta = exp( -((v - vc_ref)^2) / (2*70^2) -((h - h_ref)^2) / (2*2500^2));
 

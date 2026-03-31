@@ -6,7 +6,7 @@ function[spanwise_positions, lift_distribution, moment_distribution] = loads(x)
     sweep_LE = x(6);
     W_fuel_hat = x(19);
     W_wing_hat = x(20);
-    W_aw = 1114084.574055;
+    W_aw = 115769.685758597 * 9.81;
     v_MO = 251.563;
     [~, ~, ~, rho] = atmosisa(x(2));
 
@@ -29,7 +29,7 @@ function[spanwise_positions, lift_distribution, moment_distribution] = loads(x)
 
     [q3d_loads] = aerodynamics(CL_design, x, 0);
        
-    spanwise_positions = q3d_loads.Wing.Yst;
+    spanwise_positions = q3d_loads.Wing.Yst ./ (span_inboard + outboard_span);
     lift_distribution = q3d_loads.Wing.ccl .* 0.5 .* rho .* v_MO^2;
     moment_distribution = q3d_loads.Wing.cm_c4 .* 0.5 .* rho .* v_MO^2 .* q3d_loads.Wing.chord * mac_overall;
    

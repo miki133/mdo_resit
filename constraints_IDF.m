@@ -8,17 +8,16 @@ function [c,ceq] = constraints_IDF(x)
     sweep_LE = x(6) * 31.5;
     a_upper = x(7:12) .* [0.1823, 0.1195, 0.1490, 0.2179, 0.1249, 0.2745];   % 6×1 vector
     a_lower = x(13:18) .* [-0.1809, -0.1261, -0.1357, -0.2602, -0.0796, 0.1409];  % 6×1 vector
-    W_fuel = x(19) * 31477.7845 * 9.81;
-    W_wing = x(20) * 11445 * 9.81;
+    W_fuel = x(19) * 29274.3142414032 * 9.81;
+    W_wing = x(20) * 10360.2 * 9.81;
     L_D_ratio_hat = x(21) * 16;
-    W_aw = 1114084.574055;
+    W_aw = 115769.685758597 * 9.81;
 
     x_new = [ ...
     mach, h, c_root, outboard_span, outboard_taper_ratio, sweep_LE, ...
     a_upper(1), a_upper(2), a_upper(3), a_upper(4), a_upper(5), a_upper(6), ...
     a_lower(1), a_lower(2), a_lower(3), a_lower(4), a_lower(5), a_lower(6), ...
-    W_fuel, W_wing, L_D_ratio_hat ...
-    ];
+    W_fuel, W_wing, L_D_ratio_hat];
 
     [~, a, ~, rho] = atmosisa(h);
     v = a * mach;
@@ -40,7 +39,7 @@ function [c,ceq] = constraints_IDF(x)
     % Loads discipline
     [spanwise_positions, lift_distribution, moment_distribution] = loads(x_new);
     % Structures discipline
-    wing_weight = structures(x_new, spanwise_positions, lift_distribution, moment_distribution);
+    wing_weight = 9.81 * structures(x_new, spanwise_positions, lift_distribution, moment_distribution);
     
     % Aerodynamics discipline
     CLdes = (sqrt((W_wing + W_fuel + W_aw) * (W_wing + W_aw))) / (0.5 * rho * v^2 * wing_surface);
@@ -54,8 +53,8 @@ function [c,ceq] = constraints_IDF(x)
     
     % Constants:
     
-    W_fuel_ref = 31477.7845000000 * 9.81;
-    W_wing_ref = 11445 * 9.81;
+    W_fuel_ref = 29274.3142414032 * 9.81;
+    W_wing_ref = 10360.2 * 9.81;
     L_D_ref = 16;
     wing_loading_ref = 552.38 * 9.81;
     rho_fuel = 0.817*10^3;
@@ -64,12 +63,12 @@ function [c,ceq] = constraints_IDF(x)
     
     
     % Wing loading constraint:
-    wing_loading = 9.81 * (W_wing + W_fuel + W_aw) / wing_surface;
+    wing_loading = (W_wing + W_fuel + W_aw) / wing_surface;
     c_wing_loading = (wing_loading - wing_loading_ref)/wing_loading_ref;
     
     % Fuel Volume constraint:
     
-    v_fuel = W_fuel * f_tank / rho_fuel;
+    v_fuel = W_fuel / 9.81 / f_tank / rho_fuel;
     V_tank = find_tank_volume(a_upper, a_lower, spanwise_positions, chord_distribution, outboard_span);
     c_fuel_volume = (v_fuel - V_tank)/v_fuel_ref;
     
@@ -79,13 +78,31 @@ function [c,ceq] = constraints_IDF(x)
     
     % Consistency constraints
     
-    c_w_fuel = (fuel_weight - W_fuel) / W_fuel_ref;
-    c_w_wing = (wing_weight - W_wing) / W_wing_ref;
-    c_L_D = (L_D_ratio - L_D_ratio_hat) / L_D_ref;
+    c_w_fuel = abs(fuel_weight - W_fuel) / W_fuel_ref;
+    c_w_wing = abs(wing_weight - W_wing) / W_wing_ref;
+    c_L_D = abs(L_D_ratio - L_D_ratio_hat) / L_D_ref;
     
     %Feed back into optimizer
     
     c = [c_wing_loading, c_fuel_volume, c_emissions];
     ceq = [c_w_fuel, c_w_wing, c_L_D];
+
+        % Names for debugging
+    c_names   = {'wing_loading','fuel_volume','emissions'};
+    ceq_names = {'fuel_consistency','wing_weight_consistency','L_D_consistency'};
+    
+    % Check inequality constraints
+    for i = 1:length(c)
+        if ~isfinite(c(i))
+            fprintf('NaN/Inf in inequality constraint: %s\n', c_names{i});
+        end
+    end
+    
+    % Check equality constraints
+    for i = 1:length(ceq)
+        if ~isfinite(ceq(i))
+            fprintf('NaN/Inf in equality constraint: %s\n', ceq_names{i});
+        end
+    end
 
 end
